@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "CoCo Video Downloader",
+  "version": "1.1",
+  "description": "Download videos from any site using yt-dlp in the background",
+  "permissions": [
+    "activeTab", 
+    "storage", 
+    "tabs",
+    "cookies"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:18080/*", 
+    "https://*/*", 
+    "http://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Download this video",
+    "default_icon": {
+      "48": "icon48.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "48": "icon48.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
