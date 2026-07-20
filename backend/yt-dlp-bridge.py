@@ -21,6 +21,7 @@ CORS(app)
 
 SETTINGS_FILE = Path(__file__).parent / "settings.json"
 DOWNLOADS = {}
+cookies_lock = threading.Lock()
 
 
 def load_settings():
@@ -49,14 +50,21 @@ def save_settings():
 
 
 def find_ytdlp():
+    local_candidates = [
+        Path(__file__).parent / "yt-dlp.exe",
+        Path(__file__).parent / "yt-dlp",
+    ]
+    for c in local_candidates:
+        if c.exists():
+            return str(c)
+
     ytdlp = shutil.which("yt-dlp") or shutil.which("yt-dlp.exe")
     if ytdlp:
         return ytdlp
+
     candidates = [
         Path.home() / "Downloads" / "yt-dlp.exe",
         Path.home() / "Downloads" / "yt-dlp",
-        Path(__file__).parent / "yt-dlp.exe",
-        Path(__file__).parent / "yt-dlp",
     ]
     for p in sys.path:
         pp = Path(p)
@@ -72,11 +80,15 @@ def find_ytdlp():
 import re # 确保引入正则模块，用于过滤非法文件名字符
 
 # 注意这里：函数定义现在接收 4 个参数了，最后增加了一个 custom_title=""
-# 注意这里：增加 job_id 参数以生成超短且兼容性极佳的唯一文件名，避免 Windows 路径超长及非法字符错误
 def build_cmd(url, fmt, save_dir, custom_title="", job_id=""):
     exe = find_ytdlp()
     current_dir = Path(__file__).parent
+    plugins_dir = current_dir / "plugins"
     cookies_file = current_dir / "you.txt"
+    if job_id:
+        job_cookies = current_dir / f"cookies_{job_id}.txt"
+        if job_cookies.exists():
+            cookies_file = job_cookies
 
     # ============================================================
     # 【核心升级】在命令初始化时，硬编码追加 1000+ 网站高兼容容错参数
@@ -92,6 +104,9 @@ def build_cmd(url, fmt, save_dir, custom_title="", job_id=""):
         "--socket-timeout", "20",      # 3. 设置 20 秒网络连接超时，防止面对顽固流时无限挂起线程
         "--retries", "5"               # 4. 遇到网络波动自动重试 5 次
     ]
+
+    if plugins_dir.exists():
+        cmd.extend(["--plugin-dirs", str(plugins_dir)])
 
     # 强行注入主流 Chrome 浏览器的请求头与动态来源页（Referer），防止被识别为无头脚本
     cmd.extend([
@@ -222,64 +237,73 @@ def download_worker(job_id, url, fmt, save_dir, custom_title=""):
             DOWNLOADS[job_id]["error"] = "Cannot create directory: " + str(e)
             return
 
-    cmd = build_cmd(url, fmt, save_dir, custom_title, job_id)
-    print(f"[INFO] Executing command: {' '.join(cmd)}")
-
     try:
-        # 【经验操作】移除 text=True 和 encoding，直接读取最原始的底层字节流 (Bytes)
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            bufsize=1
-        )
-        DOWNLOADS[job_id]["status"] = "Downloading"
-        DOWNLOADS[job_id]["pid"] = proc.pid
+        cmd = build_cmd(url, fmt, save_dir, custom_title, job_id)
+        print(f"[INFO] Executing command: {' '.join(cmd)}")
 
-        # 遍历字节流
-        for raw_line in proc.stdout:
-            # 【动态双盲解码】先尝试标准 UTF-8 解码；若捕获异常，则退回 Windows 默认的 GBK 解码
-            try:
-                line = raw_line.decode('utf-8')
-            except UnicodeDecodeError:
-                line = raw_line.decode('gbk', errors='ignore')
+        try:
+            # 【经验操作】移除 text=True 和 encoding，直接读取最原始的底层字节流 (Bytes)
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                bufsize=1
+            )
+            DOWNLOADS[job_id]["status"] = "Downloading"
+            DOWNLOADS[job_id]["pid"] = proc.pid
 
-            if "ERROR:" in line or "WARNING:" in line:
-                print(f"[yt-dlp Backend Output] {line.strip()}")
-                DOWNLOADS[job_id]["error"] = line.strip()
+            # 遍历字节流
+            for raw_line in proc.stdout:
+                # 【动态双盲解码】先尝试标准 UTF-8 解码；若捕获异常，则退回 Windows 默认的 GBK 解码
+                try:
+                    line = raw_line.decode('utf-8')
+                except UnicodeDecodeError:
+                    line = raw_line.decode('gbk', errors='ignore')
 
-            pct, speed, eta, title = parse_line(line)
-            if pct is not None:
-                DOWNLOADS[job_id]["progress"] = pct
-            if speed:
-                DOWNLOADS[job_id]["speed"] = speed
-            if eta:
-                DOWNLOADS[job_id]["eta"] = eta
-                
-            if title and (DOWNLOADS[job_id]["title"] == "-" or not DOWNLOADS[job_id]["title"]):
-                DOWNLOADS[job_id]["title"] = title
+                if "ERROR:" in line or "WARNING:" in line:
+                    print(f"[yt-dlp Backend Output] {line.strip()}")
+                    DOWNLOADS[job_id]["error"] = line.strip()
+
+                pct, speed, eta, title = parse_line(line)
+                if pct is not None:
+                    DOWNLOADS[job_id]["progress"] = pct
+                if speed:
+                    DOWNLOADS[job_id]["speed"] = speed
+                if eta:
+                    DOWNLOADS[job_id]["eta"] = eta
                     
-            if "has already been downloaded" in line:
-                DOWNLOADS[job_id]["status"] = "Completed"
-                DOWNLOADS[job_id]["progress"] = 100.0
+                if title and (DOWNLOADS[job_id]["title"] == "-" or not DOWNLOADS[job_id]["title"]):
+                    DOWNLOADS[job_id]["title"] = title
+                        
+                if "has already been downloaded" in line:
+                    DOWNLOADS[job_id]["status"] = "Completed"
+                    DOWNLOADS[job_id]["progress"] = 100.0
 
-        proc.wait()
-        if proc.returncode == 0:
-            if DOWNLOADS[job_id]["status"] != "Cancelled":
-                DOWNLOADS[job_id]["status"] = "Completed"
-                DOWNLOADS[job_id]["progress"] = 100.0
-            print(f"[SUCCESS] Job {job_id} finished successfully.")
-        else:
-            if DOWNLOADS[job_id]["status"] != "Cancelled":
-                DOWNLOADS[job_id]["status"] = "Error"
-            print(f"[ERROR] Job {job_id} failed with exit code {proc.returncode}")
+            proc.wait()
+            if proc.returncode == 0:
+                if DOWNLOADS[job_id]["status"] != "Cancelled":
+                    DOWNLOADS[job_id]["status"] = "Completed"
+                    DOWNLOADS[job_id]["progress"] = 100.0
+                print(f"[SUCCESS] Job {job_id} finished successfully.")
+            else:
+                if DOWNLOADS[job_id]["status"] != "Cancelled":
+                    DOWNLOADS[job_id]["status"] = "Error"
+                print(f"[ERROR] Job {job_id} failed with exit code {proc.returncode}")
 
-    except FileNotFoundError:
-        DOWNLOADS[job_id]["status"] = "Error"
-        DOWNLOADS[job_id]["error"] = "yt-dlp not found. Place yt-dlp.exe in Downloads or this folder."
-    except Exception as e:
-        DOWNLOADS[job_id]["status"] = "Error"
-        DOWNLOADS[job_id]["error"] = str(e)
+        except FileNotFoundError:
+            DOWNLOADS[job_id]["status"] = "Error"
+            DOWNLOADS[job_id]["error"] = "yt-dlp not found. Place yt-dlp.exe in Downloads or this folder."
+        except Exception as e:
+            DOWNLOADS[job_id]["status"] = "Error"
+            DOWNLOADS[job_id]["error"] = str(e)
+    finally:
+        try:
+            job_cookies = Path(__file__).parent / f"cookies_{job_id}.txt"
+            if job_cookies.exists():
+                job_cookies.unlink()
+                print(f"[INFO] Cleaned up temporary cookies file cookies_{job_id}.txt")
+        except Exception as e:
+            print(f"[WARN] Failed to delete cookies_{job_id}.txt:", e)
 
 
 @app.route("/health", methods=["GET"])
@@ -306,12 +330,23 @@ def start_download():
     raw_title = data.get("title", "").strip()
     custom_title = urllib.parse.unquote(raw_title) if raw_title else ""
 
+    job_id = str(uuid.uuid4())[:8]
+
     cookie_data = data.get("cookie_data", "").strip()
     if cookie_data:
         try:
-            cookies_file = Path(__file__).parent / "you.txt"
+            cookies_file = Path(__file__).parent / f"cookies_{job_id}.txt"
             with open(cookies_file, "w", encoding="utf-8") as f:
                 f.write(cookie_data)
+            print(f"[INFO] Successfully updated cookies_{job_id}.txt with hot cookies from extension.")
+        except Exception as e:
+            print(f"[WARN] Failed to write cookies_{job_id}.txt:", e)
+
+        try:
+            with cookies_lock:
+                you_file = Path(__file__).parent / "you.txt"
+                with open(you_file, "w", encoding="utf-8") as f:
+                    f.write(cookie_data)
             print("[INFO] Successfully updated you.txt with hot cookies from extension.")
         except Exception as e:
             print("[WARN] Failed to write you.txt:", e)
@@ -321,7 +356,6 @@ def start_download():
     if not url.startswith(("http://", "https://")):
         return jsonify({"error": "Invalid URL"}), 400
         
-    job_id = str(uuid.uuid4())[:8]
     t = threading.Thread(target=download_worker, args=(job_id, url, fmt, save_dir, custom_title), daemon=True)
     t.start()
     return jsonify({"job_id": job_id, "status": "started"})

@@ -149,24 +149,30 @@
       background: #161616;
       border: 1px solid #333;
       border-radius: 6px;
-      padding: 10px;
+      padding: 10px 0 10px 10px;
       margin-bottom: 12px;
       display: none;
+    }
+    .manager-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-right: 10px;
+      border-bottom: 1px solid #222;
+      padding-bottom: 6px;
     }
     .manager-title {
       font-size: 12px;
       font-weight: bold;
       color: #ff4757;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #222;
-      padding-bottom: 4px;
     }
     .manager-list {
       max-height: 180px;
       overflow-y: auto;
-      padding-right: 4px;
+      padding-right: 2px;
     }
-    /* 自定义滚动条样式，使其融入暗黑主题 */
+    /* 自定义滚动条样式，使其融入暗黑主题并精确靠右侧框线 */
     .manager-list::-webkit-scrollbar, .batch-list::-webkit-scrollbar {
       width: 6px;
     }
@@ -184,7 +190,7 @@
     .manager-item {
       font-size: 11px;
       border-bottom: 1px solid #222;
-      padding: 6px 0;
+      padding: 6px 10px 6px 0;
     }
     .manager-item-title {
       color: #eee;
@@ -236,7 +242,9 @@
 
   <!-- 【UI迭代】新增：实时任务监视器面板 -->
   <div class="manager-panel" id="manager-panel">
-    <div class="manager-title">当前后台活动任务</div>
+    <div class="manager-header" id="manager-header">
+      <div class="manager-title">当前后台活动任务</div>
+    </div>
     <div class="manager-list" id="manager-list-items">
       <div style="text-align:center; color:#555; padding:20px 0;">暂无正在进行的后台任务</div>
     </div>

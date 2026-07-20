@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (isDouyinFeed) {
     urlEl.style.display = 'block';
-    urlEl.style.maxHeight = '140px';
+    urlEl.style.maxHeight = '180px';
     urlEl.style.border = '2px solid #ffa502';
     urlEl.style.backgroundColor = '#2a241a';
     urlEl.style.padding = '10px';
@@ -120,7 +120,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     urlEl.innerHTML = `
       <span style="color: #ffa502; font-weight: bold; font-size: 13px;">⚠️ 提示：当前处于推荐/精选流</span><br>
-      <span style="color: #e0e0e0; font-size: 11px; display: block; margin-top: 4px;">当前页面无法直接下载。请在想要下载的视频卡片上**右键点击“进入详情页”**，即可在该视频详情页进行下载并支持批量提取。</span>
+      <span style="color: #e0e0e0; font-size: 11px; display: block; margin-top: 4px; line-height: 1.4;">当前页面无法直接下载。请在想要下载的视频卡片上<strong style="color: #409eff;">右键点击“进入详情页”</strong>（或在右下角进入详情页），即可在该视频详情页下载。</span>
+      <div style="margin-top: 6px; padding: 5px 8px; background: rgba(255, 71, 87, 0.15); border: 1px dashed #ff4757; border-radius: 4px;">
+        <span style="color: #ff4757; font-weight: bold; font-size: 12px; display: block;">🚫 重点提醒：直播不支持下载！</span>
+      </div>
     `;
     return;
   }
@@ -180,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           if (isDouyinRecommend) {
             urlEl.style.display = 'block';
-            urlEl.style.maxHeight = '120px';
+            urlEl.style.maxHeight = '180px';
             
             btn.disabled = true;
             btn.style.background = '#333';
@@ -188,9 +191,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.textContent = `等待切换到视频详情页...`;
 
             urlEl.innerHTML = `
-              <span style="color: #ffa502; font-weight: bold;">⚠️ 提示</span><br>
-              推荐大厅无法直接下载，请在视频位置右键点击<span style="color: #ff4757; font-weight: bold;">“进入详情页”</span>继续下载<br>
-              <span style="color: #ff4757; font-weight: bold;">注：直播不支持下载</span>
+              <span style="color: #ffa502; font-weight: bold; font-size: 13px;">⚠️ 提示：当前处于推荐/精选流</span><br>
+              <span style="color: #e0e0e0; font-size: 11px; display: block; margin-top: 4px; line-height: 1.4;">推荐大厅无法直接下载，请在视频卡片上<strong style="color: #409eff;">右键点击“进入详情页”</strong>（或在右下角进入详情页）继续下载。</span>
+              <div style="margin-top: 6px; padding: 5px 8px; background: rgba(255, 71, 87, 0.15); border: 1px dashed #ff4757; border-radius: 4px;">
+                <span style="color: #ff4757; font-weight: bold; font-size: 12px; display: block;">🚫 重点提醒：直播不支持下载！</span>
+              </div>
             `;
             return;
           }
@@ -260,18 +265,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       mainWorkflowBlock.style.display = 'none';
       toggleManagerBtn.textContent = '返回下载页面';
       
+      const headerEl = document.getElementById('manager-header') || managerPanel;
       if (!document.getElementById('cancel-all-btn')) {
         const cancelAllBtn = document.createElement('button');
         cancelAllBtn.id = 'cancel-all-btn';
         cancelAllBtn.textContent = '全部取消';
-        cancelAllBtn.style.cssText = 'float: right; font-size: 12px; background: #ff4757; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; margin-bottom: 10px;';
+        cancelAllBtn.style.cssText = 'font-size: 11px; background: #ff4757; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;';
         cancelAllBtn.onclick = async () => {
           if (confirm('确定要强行取消所有正在进行的任务吗？')) {
             await fetch(SERVER + '/cancel_all', { method: 'POST' });
             fetchAndRenderJobs();
           }
         };
-        managerPanel.insertBefore(cancelAllBtn, managerPanel.firstChild);
+        headerEl.appendChild(cancelAllBtn);
       }
 
       fetchAndRenderJobs();
