@@ -7,8 +7,6 @@
 
 ---
 
-# CoCo Video Downloader (中文文档)
-
 > **全网 1000+ 平台一键视频/音频解析下载工具** — 支持 YouTube, 抖音, 快手, 今日头条, Bilibili, Twitter/X, TikTok, Instagram, Facebook, Reddit, Twitch 等各类视频网站。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -22,7 +20,7 @@
 ## 核心功能特点
 
 - 🚀 **一键极速抓取**：自动感知当前标签页或弹窗中播放的视频，无需手动复制粘贴 URL。
-- 🌐 **1000+ 网站支持**：完美支持全网主流平台（YouTube、抖音、快手、头条、Bilibili、TikTok、Twitter、Instagram 等）。
+- 🌐 **目标：支持1000+ 网站支持**：完美支持全网主流平台（YouTube、抖音、快手、头条、Bilibili、TikTok、Twitter、Instagram 等）。
 - 🧩 **国内平台深度适配**：内置快手（`kuaishou_patch`）与头条（`toutiao_patch`）深度提取补丁，解决快手 SPA 页面及头条加密流解析问题。
 - 🔒 **同名文件重命名保护**：下载同名视频时，系统自动识别并重命名为 `标题.mp4`、`标题 (1).mp4`、`标题 (2).mp4`，绝不覆盖已有文件。
 - 🍪 **Cookie 自动同步（Hot Cookies）**：扩展一键同步当前浏览器的登录态 Cookie 至后端，轻松下载高清或会员限定视频。
