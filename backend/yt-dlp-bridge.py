@@ -163,9 +163,25 @@ def build_cmd(url, fmt, save_dir, custom_title="", job_id=""):
     else:
         safe_title = "%(title)s"
         
-    # 使用 8 位的 job_id 替代原有的 %(id)s，以彻底避免直接下载 CDN URL 时其 ID 包含乱码、问号或超长导致文件无法打开写入错误
-    suffix = f"_{job_id}" if job_id else "%(id)s"
-    out_tpl = os.path.join(save_dir, f"{safe_title}_{suffix}.%(ext)s")
+    # 同名文件检测与自动编号重命名机制：如已存在“标题.mp4”，则自动命名为“标题 (1).mp4”、“标题 (2).mp4”
+    if safe_title != "%(title)s":
+        base_name = safe_title
+        target_title = base_name
+        counter = 1
+        
+        def file_exists(name):
+            for ext in [".mp4", ".mkv", ".webm", ".flv", ".avi", ".ts", ".mp3", ".m4a", ".part", ".ytdl"]:
+                if os.path.exists(os.path.join(save_dir, f"{name}{ext}")):
+                    return True
+            return False
+
+        while file_exists(target_title):
+            target_title = f"{base_name} ({counter})"
+            counter += 1
+
+        out_tpl = os.path.join(save_dir, f"{target_title}.%(ext)s")
+    else:
+        out_tpl = os.path.join(save_dir, "%(title)s.%(ext)s")
         
     cmd.extend(["-o", out_tpl])
     return cmd

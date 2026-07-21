@@ -51,19 +51,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                  .trim();
     };
 
-    // 智能获取元素的标题（优先抽取最丰富完整描述，降级使用 img.alt）
+    // 智能获取元素的标题（按 DOM 文档流收集文本，过滤 SVG 代码与 UI 冗余项）
     const getElementTitle = (el) => {
       if (!el) return "";
 
       const textNodes = [];
-      const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+      const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+        acceptNode: function(node) {
+          if (!node || !node.parentElement) return NodeFilter.FILTER_REJECT;
+          const parentTag = node.parentElement.tagName.toUpperCase();
+          if (['SCRIPT', 'STYLE', 'SVG', 'PATH', 'G', 'SYMBOL', 'USE'].includes(parentTag)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (node.parentElement.closest('svg') || node.parentElement.closest('button')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }, false);
+
       let node;
       while (node = walk.nextNode()) {
         const val = node.nodeValue.trim();
-        // 过滤常见 UI 标签、时间格式、纯数字、播放量
         if (val.length >= 2 && 
+            !/fill-rule|nonzero|currentColor|path|d=M|xmlns/i.test(val) &&
             !/^\d+(\.\d+)?[万次]?$/.test(val) && 
-            !/播放|赞|评论|分享|万|直播|时长|作者|订阅|关注|抖音|Bilibili|哔哩哔哩|YouTube|Downloader|今日头条|头条/i.test(val) &&
+            !/^(播放|赞|评论|分享|万|直播|时长|作者|订阅|关注|抖音|Bilibili|哔哩哔哩|YouTube|Downloader|今日头条|头条)$/i.test(val) &&
             !/^\d{1,2}:\d{2}(:\d{2})?$/.test(val) &&
             !/年前|月前|天前|小时前|分钟前|秒前|刚刚|昨天|前天/i.test(val) &&
             !/^\d{2,4}[-/.年]\d{1,2}[-/.月]\d{1,2}/.test(val) &&
@@ -74,21 +87,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       if (textNodes.length > 0) {
-        // 按长度降序，优先寻找带有话题标签 #、分隔符 |、书名号《》或第X集的完整丰富描述
-        textNodes.sort((a, b) => b.length - a.length);
-        for (const t of textNodes) {
-          if (t.length > 5 && (t.includes('#') || t.includes('|') || t.includes('《') || /第\d+集/.test(t))) {
-            return cleanText(t);
-          }
-        }
-        
-        const combined = textNodes.slice(0, 3).join(" ").replace(/\s+/g, " ").trim();
-        if (combined.length >= 3) {
+        // 顺序拼接 DOM 中的文本，保留完整的描述标题
+        const combined = textNodes.join(" ").replace(/\s+/g, " ").trim();
+        if (combined.length >= 2 && !/fill-rule|currentColor/i.test(combined)) {
           return cleanText(combined);
         }
       }
 
-      // 仅当 DOM 内部无文本节点时，再降级使用 img.alt
       const img = el.querySelector('img');
       if (img && img.alt && img.alt.trim().length > 2) {
         return cleanText(img.alt);
@@ -390,6 +395,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           for (let i = 0; i < 10 && parent; i++) {
             const classStr = (parent.className || "").toString().toLowerCase();
             if (classStr.includes('modal') || classStr.includes('player') || classStr.includes('play-container') || classStr.includes('popup') || classStr.includes('detail') || classStr.includes('slide')) {
+              // 优先从弹窗内专门的视频文案/描述节点提取完整标题
+              const descEl = parent.querySelector('[class*="video-info"] [class*="desc"], [class*="video-info"] [class*="title"], [class*="photo-info"] [class*="desc"], [class*="caption"], [class*="video-desc"], [class*="work-desc"], [class*="description"]');
+              if (descEl) {
+                const t = getElementTitle(descEl);
+                if (t && t.length >= 3 && !/fill-rule|currentColor/i.test(t)) {
+                  modalTitle = t;
+                }
+              }
               if (!modalTitle) {
                 modalTitle = getElementTitle(parent);
               }
@@ -410,7 +423,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             parent = parent.parentElement;
           }
 
-          if (modalTitle && modalTitle.length >= 3 && !/^\d+$/.test(modalTitle)) {
+          if (modalTitle && modalTitle.length >= 3 && !/^\d+$/.test(modalTitle) && !/fill-rule|currentColor/i.test(modalTitle)) {
             pageTitle = modalTitle;
           }
         }
