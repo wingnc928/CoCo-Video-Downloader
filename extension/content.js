@@ -350,10 +350,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         let bestVideo = null;
         let maxScore = -1;
         let directUrl = "";
+        let activePhotoId = "";
 
         for (const video of videoEls) {
-          let src = video.src || video.getAttribute('src') || video.currentSrc;
-          if (!src || !src.startsWith('http')) continue;
+          let src = video.src || video.getAttribute('src') || video.currentSrc || "";
           
           let score = 0;
           const rect = video.getBoundingClientRect();
@@ -363,9 +363,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           
           let parent = video.parentElement;
           let isPlayerParent = false;
-          for (let i = 0; i < 5 && parent; i++) {
+          for (let i = 0; i < 7 && parent; i++) {
             const classStr = (parent.className || "").toString().toLowerCase();
-            if (classStr.includes('player') || classStr.includes('modal') || classStr.includes('detail') || classStr.includes('active') || classStr.includes('popup')) {
+            if (classStr.includes('player') || classStr.includes('modal') || classStr.includes('detail') || classStr.includes('active') || classStr.includes('popup') || classStr.includes('slide')) {
               isPlayerParent = true;
               break;
             }
@@ -380,34 +380,55 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
 
         if (bestVideo) {
-          directUrl = bestVideo.src || bestVideo.getAttribute('src') || bestVideo.currentSrc;
+          let src = bestVideo.src || bestVideo.getAttribute('src') || bestVideo.currentSrc || "";
+          if (src && src.startsWith('http')) {
+            directUrl = src;
+          }
+
           let modalTitle = "";
           let parent = bestVideo.parentElement;
-          for (let i = 0; i < 7 && parent; i++) {
+          for (let i = 0; i < 10 && parent; i++) {
             const classStr = (parent.className || "").toString().toLowerCase();
-            if (classStr.includes('modal') || classStr.includes('player') || classStr.includes('play-container') || classStr.includes('popup')) {
-              modalTitle = getElementTitle(parent);
-              if (modalTitle && modalTitle.length >= 3 && !/^\d+$/.test(modalTitle)) break;
+            if (classStr.includes('modal') || classStr.includes('player') || classStr.includes('play-container') || classStr.includes('popup') || classStr.includes('detail') || classStr.includes('slide')) {
+              if (!modalTitle) {
+                modalTitle = getElementTitle(parent);
+              }
             }
+
+            // 在当前活动的播放器弹窗节点属性中提取 photoId
+            let attrText = "";
+            if (parent.attributes) {
+              for (let a = 0; a < parent.attributes.length; a++) {
+                attrText += " " + parent.attributes[a].name + "=" + parent.attributes[a].value;
+              }
+            }
+            const matchPid = attrText.match(/(?:short-video\/|photo\/|video\/|detail\/|photoId=|photo_|workId=|\/fw\/photo\/)([a-zA-Z0-9_-]{6,32})/i);
+            if (matchPid && matchPid[1] && matchPid[1] !== 'SEARCH' && matchPid[1] !== 'undefined' && matchPid[1] !== 'null') {
+              activePhotoId = matchPid[1];
+            }
+
             parent = parent.parentElement;
           }
-          if (!modalTitle || modalTitle.length < 3) {
-            let p = bestVideo.parentElement;
-            for (let i = 0; i < 5 && p; i++) {
-              modalTitle = getElementTitle(p);
-              if (modalTitle && modalTitle.length >= 3 && !/^\d+$/.test(modalTitle)) break;
-              p = p.parentElement;
-            }
-          }
+
           if (modalTitle && modalTitle.length >= 3 && !/^\d+$/.test(modalTitle)) {
             pageTitle = modalTitle;
           }
         }
 
-        const isCurrentUrlVideo = currentUrl.includes('/short-video/') || currentUrl.includes('/detail/') || currentUrl.includes('/photo/');
-        if (directUrl) {
+        // 检查 URL 或者是活动弹窗中搜寻到的作品 ID
+        if (!activePhotoId) {
+          const urlMatch = currentUrl.match(/(?:short-video\/|photo\/|video\/|detail\/|photoId=)([a-zA-Z0-9_-]{6,32})/i);
+          if (urlMatch && urlMatch[1] && urlMatch[1] !== 'SEARCH') {
+            activePhotoId = urlMatch[1];
+          }
+        }
+
+        if (activePhotoId) {
+          const photoUrl = `https://www.kuaishou.com/short-video/${activePhotoId}`;
+          addVideo(photoUrl, pageTitle, true);
+        } else if (directUrl) {
           addVideo(directUrl, pageTitle, true);
-        } else if (isCurrentUrlVideo) {
+        } else if (currentUrl.includes('/short-video/') || currentUrl.includes('/detail/') || currentUrl.includes('/photo/')) {
           addVideo(currentUrl, pageTitle, true);
         }
 
@@ -447,10 +468,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         });
 
-        // 汇入网络层与 GraphQL 拦截到的快手视频列表
-        interceptedVideosMap.forEach((title, url) => {
-          addVideo(url, title);
-        });
+        // 修复：移除会引发 ReferenceError 的未定义变量 interceptedVideosMap
+        if (typeof interceptedVideosMap !== "undefined" && interceptedVideosMap) {
+          interceptedVideosMap.forEach((title, url) => {
+            addVideo(url, title);
+          });
+        }
 
         const finalVideos = Array.from(videoMap.entries()).map(([url, title]) => ({ url, title }));
         if (finalVideos.length === 0 && retryCount < 3) {

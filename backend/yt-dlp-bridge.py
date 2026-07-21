@@ -107,6 +107,9 @@ def build_cmd(url, fmt, save_dir, custom_title="", job_id=""):
 
     if plugins_dir.exists():
         cmd.extend(["--plugin-dirs", str(plugins_dir)])
+        for sub in plugins_dir.iterdir():
+            if sub.is_dir() and (sub / "yt_dlp_plugins").exists():
+                cmd.extend(["--plugin-dirs", str(sub)])
 
     # 强行注入主流 Chrome 浏览器的请求头与动态来源页（Referer），防止被识别为无头脚本
     cmd.extend([
