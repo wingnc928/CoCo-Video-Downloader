@@ -1,10 +1,10 @@
 @echo off
-title YT-DLP Bridge Server
+title CoCo-Video-Downloader Server
 color 0B
 cls
 
 echo ================================================
-echo      YT-DLP Bridge Server
+echo      CoCo-Video-Downloader Server
 echo ================================================
 echo.
 

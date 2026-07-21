@@ -1,11 +1,11 @@
 @echo off
-title YT-DLP Background Start
+title CoCo-Video-Downloader Background Server
 color 0B
 cls
 
-echo ================================================
-echo   Starting YT-DLP Server in Background
-echo ================================================
+echo ========================================================
+echo   Starting CoCo-Video-Downloader Server in Background
+echo ========================================================
 echo.
 
 cd /d "%~dp0"
@@ -63,7 +63,7 @@ echo [Note] Using python.exe with hidden window.
 echo.
 echo [Step 3] Starting server...
 
-taskkill /F /IM python.exe /FI "WINDOWTITLE eq YT-DLP Bridge Server" >nul 2>&1
+taskkill /F /IM python.exe /FI "WINDOWTITLE eq CoCo-Video-Downloader Server" >nul 2>&1
 taskkill /F /IM pythonw.exe >nul 2>&1
 timeout /t 1 /nobreak >nul
 

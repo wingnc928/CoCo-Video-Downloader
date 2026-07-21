@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""YT-DLP Bridge Server v1.2 - Browser Extension Backend (Fixed Version)"""
+"""CoCo-Video-Downloader Server v1.2 - Browser Extension Backend"""
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -475,7 +475,7 @@ def cancel_all():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("  YT-DLP Bridge Server v1.2 (Fixed)")
+    print("  CoCo-Video-Downloader Server  ")
     print("=" * 50)
     print("  Server:   http://127.0.0.1:" + str(SETTINGS["port"]))
     print("  yt-dlp:   " + find_ytdlp())
