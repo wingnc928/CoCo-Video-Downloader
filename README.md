@@ -1,4 +1,4 @@
-# YT-DLP Video Downloader
+# CoCo Video Downloader
 
 > **One-click video / audio downloader for 1000+ websites** — YouTube, Twitter/X, TikTok, Instagram, Facebook, Reddit, Twitch, Vimeo, and more.
 
