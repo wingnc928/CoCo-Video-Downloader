@@ -5,8 +5,6 @@
   <a href="#coco-video-downloader-english-documentation"><b>English</b></a>
 </p>
 
----
-
 > **全网 1000+ 平台一键视频/音频解析下载工具** — 支持 YouTube, 抖音, 快手, 今日头条, Bilibili, Twitter/X, TikTok, Instagram, Facebook, Reddit, Twitch 等各类视频网站。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
